@@ -1,49 +1,58 @@
 const express = require('express');
-const route = require('./routes/route.js');
-const profile = require('./routes/profile.js');
+const route = require('./routes/login.routes.js')
+const google = require('./config/google.js');
+const github=require('./config/github.js');
 const mongoose = require('mongoose');
 const passport = require('passport');
+const path=require('path');
 const app = express();
 const cookie = require('cookie-session');
-const url = require('body-parser').urlencoded({ extended: false });
-
-const User = require('./schema/user');
-
-require('./config/google');
-require('./config/local');
-
-mongoose.connect(
-  'mongodb://uphaar:caped23@ds121461.mlab.com:21461/codeuino',
-  function() {
+const socket = require('socket.io');
+const user = require('./schema/user.js');
+const secret=require('./config/credential.js');
+const notification = require('./schema/notification.js');
+const indexRoutes = require('./routes/index.routes');
+mongoose.connect(secret.database, function () {
     console.log('connected');
-  }
-);
+})
+
+var loged = [];
 
 app.set('view engine', 'ejs');
-app.use(express.static('views'));
-app.use(
-  cookie({
+app.use(express.static(path.join(__dirname,'views')));
+
+app.use(cookie({
     maxAge: 24 * 60 * 60 * 1000,
     keys: ['CAPEDCRUSADER']
-  })
-);
+}));
 
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(route);
-app.use(profile);
 
-app.post('/autocomplete', url, (req, res) => {
-  if (!req.body.value) {
-    res.send('');
-  } else {
-    let regex = new RegExp(req.body.value, 'i');
-    User.find({ username: regex }, (err, user) => {
-      res.send(user);
-    });
-  }
+app.use(indexRoutes);
+
+
+
+
+var ser = app.listen(3000, function () {
+    console.log('Running');
 });
 
-app.listen(3000, function() {
-  console.log('Running');
-});
+const io = socket(ser);
+
+io.on('connection', function (socket) {
+
+    socket.on('downvote', function (data) {
+
+        user.find().then(function (out) {
+
+            out.forEach(function (x) {
+                if (x['Eid'] == data.sign) {
+                    new notification({ "fname": x['fname'], "lname": x['lname'], "upvoteId": x['Eid'], "proid": data.pro['proid'], "userid": data.pro['pid'] }).save().then(function (noti) {
+                        console.log(notif);
+                    })
+                }
+            })
+        })
+    })
+})
